@@ -279,7 +279,8 @@
         .clique-viz.loser .person-dot { background: var(--danger); opacity: 0.3; }
         /* Mobile */
         @media (max-width: 800px) {
-            .app-layout { flex-direction: column; overflow-y: auto; height: auto; }
+            body { height: auto; overflow-y: auto; } /* Allow body to scroll naturally on mobile */
+            .app-layout { flex-direction: column; overflow-y: visible; height: auto; }
             .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); overflow-y: visible; }
             .sidebar-body, .sidebar-header, .sidebar-footer { padding: 1rem; }
             .main-panel { padding: 1rem; overflow-y: visible; }
