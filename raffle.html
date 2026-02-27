@@ -347,7 +347,10 @@
             </div>
             <!-- Manual Mode -->
             <div id="mode-manual" style="display: none;">
-                <p style="font-size: 0.75rem; margin-bottom: 0.5rem;">Define cliques:</p>
+                <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <p style="font-size: 0.75rem; margin: 0;">Define cliques:</p>
+                    <strong id="manual-total-count" style="font-size: 0.85rem; color: var(--primary);">0 people</strong>
+                </div>
                 <div id="manual-list" class="manual-list"></div>
                 <button class="btn-add" onclick="addManualRow()">+ Add Clique Group</button>
             </div>
@@ -434,6 +437,11 @@
         };
 
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        
+        // Update the manual total counter whenever settings change/save
+        if (APP_STATE.mode === 'manual') {
+            updateManualTotal();
+        }
     }
 
     function loadSettings() {
@@ -486,6 +494,9 @@
         
         // Done initializing
         isInitializing = false;
+        
+        // Ensure total is calculated on load
+        updateManualTotal(); 
     }
 
     // ==========================================
@@ -779,6 +790,14 @@
         
         fairContainer.appendChild(fairDiv);
         fairContainer.appendChild(legend);
+    }
+    
+    function updateManualTotal() {
+        const cliques = getManualCliques();
+        let total = 0;
+        cliques.forEach(c => total += c.count * c.size);
+        const el = document.getElementById('manual-total-count');
+        if (el) el.innerText = total.toLocaleString() + ' people';
     }
     
     function createCliqueElement(size, isWinner) {
