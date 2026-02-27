@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Raffle Simulator</title>
+    <style>
+        :root {
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --primary: #4f46e5;
+            --primary-light: #e0e7ff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --success: #10b981;
+            --danger: #ef4444;
+            --border: #e5e7eb;
+            --radius: 8px; /* Slightly smaller for density */
+            --shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            height: 100vh;
+            overflow: hidden; /* App handles scroll internally */
+        }
+        /* Layout: Split Screen */
+        .app-layout {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+        /* Sidebar */
+        .sidebar {
+            width: 360px;
+            min-width: 300px;
+            background: var(--card-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow);
+            z-index: 10;
+        }
+        .sidebar-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            background: #fafafa;
+        }
+        .sidebar-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.25rem 1.5rem;
+        }
+        .sidebar-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border);
+            background: #fafafa;
+        }
+        /* Main Content */
+        .main-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto; /* Enable scroll here */
+            padding: 1.5rem 2rem;
+            background: var(--bg-color);
+        }
+        /* Typography */
+        h1, h2, h3 { margin: 0; font-weight: 700; }
+        h1 { font-size: 1.25rem; color: var(--primary); letter-spacing: -0.02em; }
+        p { margin: 0; color: var(--text-muted); font-size: 0.85rem; line-height: 1.4; }
+        
+        .section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            margin-top: 1.5rem;
+            font-weight: 700;
+        }
+        .section-title:first-child { margin-top: 0; }
+        /* Components */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 1.25rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.25rem; /* Compact gap */
+        }
+        .warning-banner {
+            background: #fffbeb;
+            border: 1px solid #fcd34d;
+            color: #92400e;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            margin-bottom: 1rem;
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        /* Inputs */
+        .input-group { margin-bottom: 1rem; }
+        .input-group label { display: block; font-weight: 600; font-size: 0.8rem; margin-bottom: 0.25rem; }
+        .input-group small { display: block; color: var(--text-muted); font-size: 0.75rem; margin-top: 0.25rem; }
+        
+        input[type="number"], select {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            transition: border-color 0.2s;
+            background: white;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--primary); }
+        /* Toggles & Buttons */
+        .toggle-group {
+            display: flex;
+            background: var(--bg-color);
+            border-radius: 6px;
+            padding: 3px;
+            margin-bottom: 1rem;
+        }
+        .toggle-btn {
+            flex: 1;
+            padding: 0.4rem;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            border: none;
+            background: none;
+            transition: all 0.2s;
+        }
+        .toggle-btn.active {
+            background: var(--card-bg);
+            color: var(--primary);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        /* Visual Selector */
+        .vibe-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+        .vibe-option {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.75rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+        }
+        .vibe-option:hover { border-color: var(--primary-light); }
+        .vibe-option.selected { border-color: var(--primary); background: var(--primary-light); }
+        .vibe-option strong { display: block; font-size: 0.8rem; margin-bottom: 0.1rem; }
+        .vibe-option span { font-size: 0.7rem; color: var(--text-muted); }
+        /* Manual List */
+        .manual-list { margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
+        .manual-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            animation: fadeIn 0.2s ease;
+            background: #fafafa;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+        }
+        .manual-item input { 
+            width: 70px; 
+            text-align: center; 
+            padding: 0.5rem; 
+            font-size: 0.9rem;
+        }
+        .btn-remove { color: var(--danger); cursor: pointer; font-weight: bold; font-size: 1rem; line-height: 1; }
+        .btn-add {
+            background: none;
+            border: 1px dashed var(--border);
+            width: 100%;
+            padding: 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--primary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-top: 0.25rem;
+            background: white;
+        }
+        .btn-add:hover { background: var(--primary-light); border-style: solid; }
+        .btn-run {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .btn-run:hover { opacity: 0.9; }
+        .btn-run:disabled { opacity: 0.6; cursor: not-allowed; }
+        /* Results Area */
+        .results-placeholder {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            opacity: 0.5;
+            text-align: center;
+        }
+        /* Charts */
+        .bar-chart { display: flex; flex-direction: column; gap: 0.35rem; }
+        .bar-row { display: flex; align-items: center; gap: 0.75rem; font-size: 0.8rem; }
+        .bar-label { width: 130px; text-align: right; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+        .bar-track { flex: 1; height: 20px; background: var(--bg-color); border-radius: 4px; overflow: hidden; position: relative; }
+        .bar-fill { height: 100%; background: var(--primary); border-radius: 4px; display: flex; align-items: center; padding-left: 6px; color: white; font-size: 0.7rem; transition: width 0.5s ease; white-space: nowrap; }
+        
+        .fairness-bar { display: flex; height: 100%; position: relative; }
+        .fairness-ideal {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #000;
+            z-index: 2;
+        }
+        .fairness-ideal::after {
+            content: 'Ideal';
+            position: absolute;
+            top: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.65rem;
+            font-weight: bold;
+            background: white;
+            padding: 0 2px;
+            color: var(--text-main);
+        }
+        .fairness-warning {
+            background: #fffbeb;
+            border: 1px solid #fcd34d;
+            color: #92400e;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        /* Visualization Dots */
+        .sample-round-viz {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            padding: 0.75rem;
+            background: var(--bg-color);
+            border-radius: 6px;
+            min-height: 50px;
+            align-items: center;
+        }
+        .clique-viz {
+            display: flex;
+            border-radius: 3px;
+            overflow: hidden;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+        }
+        .person-dot { width: 8px; height: 8px; background: rgba(0,0,0,0.2); }
+        .clique-viz.winner .person-dot { background: var(--success); }
+        .clique-viz.loser .person-dot { background: var(--danger); opacity: 0.3; }
+        /* Mobile */
+        @media (max-width: 800px) {
+            .app-layout { flex-direction: column; overflow-y: auto; height: auto; }
+            .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); overflow-y: visible; }
+            .sidebar-body, .sidebar-header, .sidebar-footer { padding: 1rem; }
+            .main-panel { padding: 1rem; overflow-y: visible; }
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .spinner {
+            border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 2px solid white; width: 16px; height: 16px; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+<div class="app-layout">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h1>🎡 Raffle Simulator</h1>
+            <p>Configure your event and check fairness.</p>
+        </div>
+        <div class="sidebar-body">
+            <div class="section-title">Event Constraints</div>
+            <div class="input-group">
+                <label>Target Seats</label>
+                <input type="number" id="target-seats" value="50" min="1" onchange="saveSettings()">
+            </div>
+            <div class="input-group">
+                <label>Allow Overbooking (Max Extra Seats)</label>
+                <input type="number" id="overbooking" value="10" min="0" onchange="saveSettings()">
+                <small>Set to 0 for exact count.</small>
+            </div>
+            <div class="section-title">Participants</div>
+            <div class="toggle-group">
+                <button class="toggle-btn active" id="btn-auto" onclick="setMode('auto')">Auto Generate</button>
+                <button class="toggle-btn" id="btn-manual" onclick="setMode('manual')">Manual Setup</button>
+            </div>
+            <!-- Auto Mode -->
+            <div id="mode-auto">
+                <div class="input-group">
+                    <label>Total People (Approx)</label>
+                    <input type="number" id="random-people" value="150" onchange="saveSettings()">
+                </div>
+                
+                <div class="input-group">
+                    <label style="margin-bottom: 0.5rem; display:block;">Group Dynamics</label>
+                    <div class="vibe-selector">
+                        <div class="vibe-option selected" data-dist="gaussian" onclick="selectVibe(this)">
+                            <strong>👥 Mixed</strong>
+                            <span>Avg ~3</span>
+                        </div>
+                        <div class="vibe-option" data-dist="biased_small" onclick="selectVibe(this)">
+                            <strong>👤 Singles</strong>
+                            <span>Mostly 1s</span>
+                        </div>
+                        <div class="vibe-option" data-dist="uniform" onclick="selectVibe(this)">
+                            <strong>🎲 Chaos</strong>
+                            <span>Random</span>
+                        </div>
+                        <div class="vibe-option" data-dist="big" onclick="selectVibe(this)">
+                            <strong>👨‍👩‍👧‍👦 Squads</strong>
+                            <span>Large groups</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Manual Mode -->
+            <div id="mode-manual" style="display: none;">
+                <p style="font-size: 0.75rem; margin-bottom: 0.5rem;">Define cliques:</p>
+                <div id="manual-list" class="manual-list"></div>
+                <button class="btn-add" onclick="addManualRow()">+ Add Clique Group</button>
+            </div>
+        </div>
+        <div class="sidebar-footer">
+            <button id="btn-run" class="btn-run" onclick="runSimulation()">
+                Run Simulation
+            </button>
+        </div>
+    </div>
+    <!-- Main Content -->
+    <div class="main-panel">
+        
+        <div id="placeholder" class="results-placeholder">
+            <div>
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+                <h2>Waiting for Input</h2>
+                <p>Configure parameters and run simulation.</p>
+            </div>
+        </div>
+        <div id="results-area" style="display: none;">
+            
+            <div id="warning-banner" class="warning-banner">
+                <span>⚠️</span>
+                <span id="warning-text"></span>
+            </div>
+            
+            <!-- 1. Fairness Analysis -->
+            <div class="card">
+                <h3 style="font-size: 1rem;">⚖️ Fairness Analysis</h3>
+                <p id="fairness-desc" style="margin-bottom: 0.75rem;">Win rate per group size. Bars should align with the "Ideal" line.</p>
+                
+                <div id="fairness-warning" class="fairness-warning"></div>
+                <div id="chart-fairness" class="chart-container"></div>
+            </div>
+            <!-- 2. Visual Snapshot -->
+            <div class="card">
+                <h3 style="font-size: 1rem;">👀 Visual Snapshot</h3>
+                <p style="margin-bottom: 0.75rem;">Visual representation of cliques: Green (Won), Red (Lost).</p>
+                <div id="sample-viz" class="sample-round-viz"></div>
+            </div>
+            <!-- 3. Seat Distribution -->
+            <div class="card">
+                <h3 style="font-size: 1rem;">🎫 Seat Distribution</h3>
+                <p style="margin-bottom: 0.75rem;">How often specific seat counts occurred.</p>
+                <div id="chart-seats" class="chart-container"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    // ==========================================
+    // INTERNAL CONFIG
+    // ==========================================
+    const INTERNAL_CONFIG = {
+        MAX_TIME_MS: 3000,
+        TARGET_SIMS: 100000,
+        MIN_SIMS_FOR_CONFIDENCE: 5000,
+        BATCH_SIZE: 2000
+    };
+    
+    const STORAGE_KEY = 'raffle_sim_settings_v1';
+    let isInitializing = true; // Flag to prevent save during load
+
+    let APP_STATE = {
+        mode: 'auto',
+        distribution: 'gaussian',
+        manual_cliques: [ { count: 5, size: 1 }, { count: 1, size: 3 }, { count: 20, size: 9 } ]
+    };
+
+    // ==========================================
+    // PERSISTENCE LOGIC
+    // ==========================================
+    function saveSettings() {
+        if (isInitializing) return;
+
+        const data = {
+            targetSeats: document.getElementById('target-seats').value,
+            overbooking: document.getElementById('overbooking').value,
+            randomPeople: document.getElementById('random-people').value,
+            mode: APP_STATE.mode,
+            distribution: APP_STATE.distribution,
+            manual_cliques: getManualCliques()
+        };
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function loadSettings() {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        let data;
+
+        if (stored) {
+            try {
+                data = JSON.parse(stored);
+            } catch (e) {
+                console.error("Error parsing stored settings", e);
+                data = null;
+            }
+        }
+
+        if (!data) {
+            // Defaults if nothing stored
+            data = {
+                targetSeats: 50,
+                overbooking: 10,
+                randomPeople: 150,
+                mode: 'auto',
+                distribution: 'gaussian',
+                manual_cliques: [
+                    { count: 5, size: 1 },
+                    { count: 1, size: 3 },
+                    { count: 20, size: 9 }
+                ]
+            };
+        }
+
+        // Apply values to inputs
+        document.getElementById('target-seats').value = data.targetSeats;
+        document.getElementById('overbooking').value = data.overbooking;
+        document.getElementById('random-people').value = data.randomPeople;
+
+        // Apply Mode
+        setMode(data.mode);
+
+        // Apply Distribution
+        const vibeEl = document.querySelector(`.vibe-option[data-dist="${data.distribution}"]`);
+        if (vibeEl) selectVibe(vibeEl);
+
+        // Apply Manual Cliques
+        const list = document.getElementById('manual-list');
+        list.innerHTML = ''; 
+        if (data.manual_cliques && data.manual_cliques.length > 0) {
+            data.manual_cliques.forEach(c => addManualRow(c.count, c.size));
+        }
+        
+        // Done initializing
+        isInitializing = false;
+    }
+
+    // ==========================================
+    // UI LOGIC
+    // ==========================================
+    
+    function setMode(mode) {
+        APP_STATE.mode = mode;
+        document.getElementById('btn-auto').classList.toggle('active', mode === 'auto');
+        document.getElementById('btn-manual').classList.toggle('active', mode === 'manual');
+        document.getElementById('mode-auto').style.display = mode === 'auto' ? 'block' : 'none';
+        document.getElementById('mode-manual').style.display = mode === 'manual' ? 'block' : 'none';
+        saveSettings();
+    }
+    function selectVibe(el) {
+        document.querySelectorAll('.vibe-option').forEach(e => e.classList.remove('selected'));
+        el.classList.add('selected');
+        APP_STATE.distribution = el.dataset.dist;
+        saveSettings();
+    }
+    function addManualRow(count = 1, size = 2) {
+        const list = document.getElementById('manual-list');
+        const div = document.createElement('div');
+        div.className = 'manual-item';
+        div.innerHTML = `
+            <input type="number" value="${count}" min="1" class="m-count" onchange="saveSettings()"> groups of 
+            <input type="number" value="${size}" min="1" class="m-size" onchange="saveSettings()">
+            <span class="btn-remove" onclick="removeManualRow(this)">✕</span>
+        `;
+        list.appendChild(div);
+        saveSettings();
+    }
+    function removeManualRow(el) {
+        el.parentElement.remove();
+        saveSettings();
+    }
+    function getManualCliques() {
+        const rows = document.querySelectorAll('.manual-item');
+        const cliques = [];
+        rows.forEach(row => {
+            const count = parseInt(row.querySelector('.m-count').value);
+            const size = parseInt(row.querySelector('.m-size').value);
+            if (count > 0 && size > 0) cliques.push({ count, size });
+        });
+        return cliques;
+    }
+    // ==========================================
+    // CORE LOGIC
+    // ==========================================
+    function generateCliques() {
+        const cliques = [];
+        
+        if (APP_STATE.mode === 'manual') {
+            getManualCliques().forEach(item => {
+                for (let i = 0; i < item.count; i++) cliques.push(item.size);
+            });
+        } else {
+            const targetPeople = parseInt(document.getElementById('random-people').value);
+            const maxCliqueSize = 8; 
+            let peopleCount = 0;
+            while (peopleCount < targetPeople) {
+                let size = 1;
+                const dist = APP_STATE.distribution;
+                if (dist === 'uniform') {
+                    size = Math.floor(Math.random() * maxCliqueSize) + 1;
+                } else if (dist === 'biased_small') {
+                    const r = Math.random();
+                    if (r < 0.5) size = 1;
+                    else if (r < 0.75) size = 2;
+                    else if (r < 0.9) size = 3;
+                    else size = Math.floor(Math.random() * 5) + 4;
+                } else if (dist === 'gaussian') {
+                    let g = gaussianRandom(3.0, 1.5);
+                    size = Math.round(g);
+                    size = Math.max(1, Math.min(size, maxCliqueSize));
+                } else if (dist === 'big') {
+                    const r = Math.random();
+                    if (r < 0.2) size = 2;
+                    else if (r < 0.5) size = 4;
+                    else size = Math.floor(Math.random() * 4) + 5;
+                }
+                if (peopleCount + size > targetPeople + 10) continue;
+                cliques.push(size);
+                peopleCount += size;
+            }
+        }
+        return cliques;
+    }
+    function gaussianRandom(mean, std) {
+        let u = 0, v = 0;
+        while (u === 0) u = Math.random();
+        while (v === 0) v = Math.random();
+        return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v) * std + mean;
+    }
+    // ==========================================
+    // SIMULATION ENGINE
+    // ==========================================
+    
+    async function runSimulation() {
+        const targetSeats = parseInt(document.getElementById('target-seats').value);
+        const overbooking = parseInt(document.getElementById('overbooking').value);
+        
+        const minTol = targetSeats;
+        const maxTol = targetSeats + overbooking;
+        const effectiveSeatsForProbability = targetSeats + (overbooking / 2.0);
+        const cliques = generateCliques();
+        if (cliques.length === 0) { alert("Please define at least one clique!"); return; }
+        
+        const totalPeople = cliques.reduce((a, b) => a + b, 0);
+        const p = effectiveSeatsForProbability / totalPeople;
+        // UI Prep
+        const btn = document.getElementById('btn-run');
+        btn.disabled = true;
+        btn.innerHTML = `<div class="spinner"></div> Calculating...`;
+        
+        document.getElementById('placeholder').style.display = 'none';
+        document.getElementById('results-area').style.display = 'block';
+        document.getElementById('warning-banner').style.display = 'none';
+        document.getElementById('sample-viz').innerHTML = '';
+        document.getElementById('chart-seats').innerHTML = '';
+        document.getElementById('chart-fairness').innerHTML = '';
+        await new Promise(resolve => setTimeout(resolve, 20));
+        // Run Loops
+        const startTime = performance.now();
+        let simCount = 0;
+        const seatHistory = [];
+        const cliqueWins = new Array(cliques.length).fill(0);
+        
+        while (simCount < INTERNAL_CONFIG.TARGET_SIMS || seatHistory.length < INTERNAL_CONFIG.MIN_SIMS_FOR_CONFIDENCE) {
+            const batchFinished = runBatch(INTERNAL_CONFIG.BATCH_SIZE, cliques, p, minTol, maxTol, seatHistory, cliqueWins);
+            simCount += batchFinished;
+            if (performance.now() - startTime > INTERNAL_CONFIG.MAX_TIME_MS) break;
+        }
+        const validRounds = seatHistory.length;
+        
+        // Render
+        renderResults(cliques, seatHistory, cliqueWins, p, validRounds, targetSeats, overbooking);
+        if (validRounds < INTERNAL_CONFIG.MIN_SIMS_FOR_CONFIDENCE) {
+            document.getElementById('warning-banner').style.display = 'flex';
+            document.getElementById('warning-text').innerText = `Only ${validRounds} valid rounds found in 3s. Results might be inaccurate. Increase overbooking for better stats.`;
+        }
+        btn.disabled = false;
+        btn.innerHTML = 'Run Simulation';
+    }
+    function runBatch(count, cliques, p, minTol, maxTol, seatHistory, cliqueWins) {
+        let processed = 0;
+        for (let i = 0; i < count; i++) {
+            processed++;
+            const winners = [];
+            let seatsUsed = 0;
+            for (let c = 0; c < cliques.length; c++) {
+                if (Math.random() < p) {
+                    winners.push(c);
+                    seatsUsed += cliques[c];
+                }
+            }
+            if (seatsUsed >= minTol && seatsUsed <= maxTol) {
+                seatHistory.push(seatsUsed);
+                winners.forEach(idx => cliqueWins[idx]++);
+            }
+        }
+        return processed;
+    }
+    // ==========================================
+    // VISUALIZATION
+    // ==========================================
+    function renderResults(cliques, seatHistory, cliqueWins, p, validRounds, targetSeats, overbooking) {
+        
+        // --- A) Fairness Analysis (First) ---
+        renderFairnessChart(cliques, cliqueWins, validRounds, p);
+        // --- B) Visual Snapshot ---
+        const sampleViz = document.getElementById('sample-viz');
+        let vizWinners = [], vizLosers = [], attempts = 0;
+        do {
+            vizWinners = []; vizLosers = [];
+            cliques.forEach((size, idx) => {
+                if (Math.random() < p) vizWinners.push(idx);
+                else vizLosers.push(idx);
+            });
+            attempts++;
+        } while ((vizWinners.length === 0 || vizLosers.length === 0) && attempts < 20);
+        vizWinners.forEach(idx => sampleViz.appendChild(createCliqueElement(cliques[idx], true)));
+        vizLosers.forEach(idx => sampleViz.appendChild(createCliqueElement(cliques[idx], false)));
+        // --- C) Seat Distribution ---
+        const seatContainer = document.getElementById('chart-seats');
+        const hist = {};
+        seatHistory.forEach(val => hist[val] = (hist[val] || 0) + 1);
+        
+        if(Object.keys(hist).length === 0) {
+            seatContainer.innerHTML = "<p>No valid rounds recorded.</p>";
+            return;
+        }
+        const maxCount = Math.max(...Object.values(hist));
+        const minSeat = Math.min(...Object.keys(hist).map(Number));
+        const maxSeat = Math.max(...Object.keys(hist).map(Number));
+        const chartDiv = document.createElement('div');
+        chartDiv.className = 'bar-chart';
+        
+        for (let i = minSeat; i <= maxSeat; i++) {
+            const count = hist[i] || 0;
+            const pct = (count / validRounds * 100).toFixed(1);
+            const width = (count / maxCount * 50);
+            
+            const row = document.createElement('div');
+            row.className = 'bar-row';
+            
+            let labelColor = 'var(--text-muted)';
+            if (i >= targetSeats && i <= targetSeats + overbooking) labelColor = 'var(--primary)';
+            row.innerHTML = `
+                <div class="bar-label" style="color:${labelColor}">${i} seats</div>
+                <div class="bar-track">
+                    <div class="bar-fill" style="width: ${width}%">${pct}%</div>
+                </div>
+            `;
+            chartDiv.appendChild(row);
+        }
+        seatContainer.appendChild(chartDiv);
+    }
+    function renderFairnessChart(cliques, cliqueWins, validRounds, idealP) {
+        const fairContainer = document.getElementById('chart-fairness');
+        fairContainer.innerHTML = '';
+        const descEl = document.getElementById('fairness-desc');
+        if(descEl) descEl.innerHTML = `Win rate per group size. Bars should align with the "Ideal" line.<br><strong>Based on ${validRounds.toLocaleString()} successful simulated raffles.</strong>`;
+        if (validRounds === 0) {
+             fairContainer.innerHTML = "<p>Not enough data.</p>";
+             return;
+        }
+        const fairDiv = document.createElement('div');
+        fairDiv.className = 'bar-chart';
+        const sizeStats = {};
+        cliques.forEach((size, idx) => {
+            if(!sizeStats[size]) sizeStats[size] = { totalCliques: 0, totalWins: 0 };
+            sizeStats[size].totalCliques++;
+            sizeStats[size].totalWins += cliqueWins[idx];
+        });
+        const sizes = Object.keys(sizeStats).map(Number).sort((a,b) => a-b);
+        
+        // --- Bias Detection Logic ---
+        const idealPctVal = idealP * 100;
+        let maxRelDeviation = 0;
+        let maxRateFound = 0;
+        let maxRateDisplay = idealPctVal; 
+        
+        sizes.forEach(size => {
+            const stats = sizeStats[size];
+            const rate = (stats.totalWins / stats.totalCliques / validRounds) * 100;
+            if (rate > maxRateFound) maxRateFound = rate;
+            
+            if (idealPctVal > 0) {
+                const relDev = Math.abs(rate - idealPctVal) / idealPctVal;
+                if (relDev > maxRelDeviation) maxRelDeviation = relDev;
+            }
+        });
+        // Target the new warning element inside the card
+        const biasWarningEl = document.getElementById('fairness-warning');
+        
+        if (sizes.length > 1 && maxRelDeviation > 0.20 && validRounds > 500) {
+             biasWarningEl.style.display = 'block';
+             const deviationPct = (maxRelDeviation * 100).toFixed(0);
+             // Updated text to be more general
+             // biasWarningEl.innerHTML = `⚠️ <strong>Fairness Imbalance Detected!</strong> One group size deviates by ${deviationPct}% from the ideal probability.<br><strong>Recommendation:</strong> Increase "Allow Overbooking" to balance probabilities more fairly.`;
+             biasWarningEl.innerHTML = `⚠️ Fairness Imbalance Detected! <strong>Recommendation:</strong> Increase "Allow Overbooking" to balance probabilities more fairly.`;
+        } else {
+             biasWarningEl.style.display = 'none';
+        }
+        maxRateDisplay = Math.max(maxRateFound, idealPctVal);
+        maxRateDisplay = Math.ceil(maxRateDisplay / 10) * 10;
+        sizes.forEach(size => {
+            const stats = sizeStats[size];
+            const rate = (stats.totalWins / stats.totalCliques / validRounds) * 100;
+            const width = (rate / maxRateDisplay * 50);
+            const idealPos = (idealPctVal / maxRateDisplay * 50);
+            const row = document.createElement('div');
+            row.className = 'bar-row';
+            row.innerHTML = `
+                <div class="bar-label">Groups with ${size} people</div>
+                <div class="bar-track">
+                    <div class="fairness-bar">
+                        <div class="bar-fill" style="width: ${width}%">${rate.toFixed(1)}%</div>
+                        <div class="fairness-ideal" style="left: ${idealPos}%;"></div>
+                    </div>
+                </div>
+            `;
+            fairDiv.appendChild(row);
+        });
+        const legend = document.createElement('div');
+        legend.style.fontSize = '0.75rem';
+        legend.style.marginTop = '0.75rem';
+        legend.style.color = 'var(--text-muted)';
+        legend.innerHTML = `Ideal Win Rate: <strong>${idealPctVal.toFixed(1)}%</strong>`;
+        
+        fairContainer.appendChild(fairDiv);
+        fairContainer.appendChild(legend);
+    }
+    
+    function createCliqueElement(size, isWinner) {
+        const el = document.createElement('div');
+        el.className = `clique-viz ${isWinner ? 'winner' : 'loser'}`;
+        // Re-add the tooltip here
+        el.title = `Clique of ${size} (${isWinner ? 'Won' : 'Lost'})`;
+        
+        for(let i=0; i<size; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'person-dot';
+            el.appendChild(dot);
+        }
+        return el;
+    }
+    
+    // Init
+    loadSettings();
+</script>
+</body>
+</html>
