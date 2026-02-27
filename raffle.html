@@ -606,7 +606,7 @@
         if (cliques.length === 0) { alert("Please define at least one clique!"); return; }
         
         const totalPeople = cliques.reduce((a, b) => a + b, 0);
-        const p = effectiveSeatsForProbability / totalPeople;
+        let p = effectiveSeatsForProbability / totalPeople;
         // UI Prep
         const btn = document.getElementById('btn-run');
         btn.disabled = true;
@@ -624,13 +624,30 @@
         let simCount = 0;
         const seatHistory = [];
         const cliqueWins = new Array(cliques.length).fill(0);
-        
-        while (simCount < INTERNAL_CONFIG.TARGET_SIMS || seatHistory.length < INTERNAL_CONFIG.MIN_SIMS_FOR_CONFIDENCE) {
-            const batchFinished = runBatch(INTERNAL_CONFIG.BATCH_SIZE, cliques, p, minTol, maxTol, seatHistory, cliqueWins);
-            simCount += batchFinished;
-            if (performance.now() - startTime > INTERNAL_CONFIG.MAX_TIME_MS) break;
+        let validRounds = 0;
+
+        // Handle "Everyone Wins" (Sufficient Seats)
+        if (p >= 1) {
+            p = 1.0; // Cap probability at 100%
+            validRounds = 10000; // Mock count for display scaling
+            
+            // Everyone wins every time
+            for(let i=0; i<cliqueWins.length; i++) cliqueWins[i] = validRounds;
+            
+            // Seat usage is always exactly the total people
+            for(let i=0; i<validRounds; i++) seatHistory.push(totalPeople);
+            
+            // Show success message
+            document.getElementById('warning-banner').style.display = 'flex';
+            document.getElementById('warning-text').innerText = `✅ Sufficient seats available for ${totalPeople} participants. Everyone wins!`;
+        } else {
+            while (simCount < INTERNAL_CONFIG.TARGET_SIMS || seatHistory.length < INTERNAL_CONFIG.MIN_SIMS_FOR_CONFIDENCE) {
+                const batchFinished = runBatch(INTERNAL_CONFIG.BATCH_SIZE, cliques, p, minTol, maxTol, seatHistory, cliqueWins);
+                simCount += batchFinished;
+                if (performance.now() - startTime > INTERNAL_CONFIG.MAX_TIME_MS) break;
+            }
+            validRounds = seatHistory.length;
         }
-        const validRounds = seatHistory.length;
         
         // Render
         renderResults(cliques, seatHistory, cliqueWins, p, validRounds, targetSeats, overbooking);
